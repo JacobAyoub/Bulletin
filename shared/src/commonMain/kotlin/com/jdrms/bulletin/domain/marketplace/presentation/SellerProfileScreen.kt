@@ -23,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jdrms.bulletin.core.designsystem.BulletinCard
 import com.jdrms.bulletin.core.designsystem.theme.BulletinSpacing
-import com.jdrms.bulletin.domain.marketplace.domain.model.MarketplaceCategory
-import com.jdrms.bulletin.domain.marketplace.domain.model.MarketplaceCondition
 
 @Composable
 fun SellerProfileScreen(
@@ -69,10 +67,11 @@ fun SellerProfileScreen(
                 }
                 if (state.listings.isNotEmpty()) {
                     item {
-                        MarketplaceFilters(
+                        MarketplaceSearchFilters(
                             filters = state.filters,
-                            onCategorySelected = listingActions.onCategorySelected,
-                            onConditionSelected = listingActions.onConditionSelected
+                            onQueryChanged = listingActions.onQueryChanged,
+                            onFiltersApplied = listingActions.onFiltersApplied,
+                            onSearchPositioned = {}
                         )
                     }
                 }
@@ -115,8 +114,8 @@ data class SellerProfileScreenOptions(
 
 data class SellerProfileListingActions(
     val onListingClick: (String) -> Unit,
-    val onCategorySelected: (MarketplaceCategory?) -> Unit,
-    val onConditionSelected: (MarketplaceCondition?) -> Unit
+    val onQueryChanged: (String) -> Unit,
+    val onFiltersApplied: (MarketplaceFilterState) -> Unit
 )
 
 @Composable
