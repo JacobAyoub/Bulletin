@@ -65,6 +65,7 @@ private fun MarketplaceDetailOverlay(
                 onNavigate(MarketplaceDestination.SELLER_PROFILE)
             },
             onMessageSeller = actions.onMessageSeller,
+            onMessageSent = actions.onMessageSent,
             hasExistingConversation = actions.hasExistingConversation,
             onSeeChat = actions.onSeeChat
         )

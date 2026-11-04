@@ -101,7 +101,6 @@ internal class ProfileBookmarksController(
                     bookmarkedListingFilterOptions = page.filterOptions,
                     isLoadingBookmarkedListings = false,
                     bookmarkedListingsNextCursor = page.nextCursor,
-                    selectedBookmarkedListingId = null,
                     errorMessage = null
                 )
             }
@@ -175,7 +174,6 @@ internal class ProfileBookmarksController(
                     bookmarkedListings = it.bookmarkedListings.filterNot { listing -> listing.id == listingId },
                     bookmarkedListingsNextCursor = it.bookmarkedListingsNextCursor?.afterRemoval(),
                     removingBookmarkedListingId = null,
-                    selectedBookmarkedListingId = null,
                     errorMessage = null
                 )
             }

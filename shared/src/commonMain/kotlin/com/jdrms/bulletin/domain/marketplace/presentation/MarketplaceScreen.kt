@@ -54,6 +54,13 @@ fun MarketplaceScreen(
         }
     }
 
+    LaunchedEffect(navigation.listingIdToOpen) {
+        navigation.listingIdToOpen?.let { listingId ->
+            viewModel.onListingClicked(listingId)
+            navigation.onListingRequestHandled()
+        }
+    }
+
     val flowState = MarketplaceSellerFlowUiState(state, sellerProfileState, reportState, blockState, sellerNavigation)
     val flowViewModels = MarketplaceSellerFlowViewModels(
         viewModel,
@@ -92,7 +99,7 @@ fun MarketplaceScreen(
             viewModel = viewModel,
             sellerProfileViewModel = sellerProfileViewModel,
             listingReportViewModel = listingReportViewModel,
-            actions = actions,
+            actions = actions.copy(onListingClosed = navigation.onListingClosed),
             onContentNoLongerScrollable = navigation.onContentNoLongerScrollable,
             onNavigate = { destination ->
                 val context = state.detail.listing

@@ -178,7 +178,10 @@ fun MarketplaceDetailBottomSheet(
                                 onSend = { content ->
                                     onMessageSeller(listing.id.value, listing.sellerId, listing.sellerName, content)
                                 },
-                                onSent = onDismiss,
+                                onSent = {
+                                    onDismiss()
+                                    actions.onMessageSent()
+                                },
                                 onSeeChat = {
                                     actions.onSeeChat(listing.id.value, listing.sellerId)
                                 }
