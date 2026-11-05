@@ -38,6 +38,7 @@ import com.jdrms.bulletin.core.designsystem.BulletinButton
 import com.jdrms.bulletin.core.designsystem.BulletinButtonSize
 import com.jdrms.bulletin.core.designsystem.theme.BulletinButtonVariant
 import com.jdrms.bulletin.core.designsystem.theme.BulletinSpacing
+import com.jdrms.bulletin.core.designsystem.theme.BulletinThemeColor
 
 internal data class SettingsActions(
     val onEditAccount: () -> Unit,
@@ -49,13 +50,20 @@ internal data class SettingsActions(
     val onConfirmDeleteProfile: () -> Unit = {}
 )
 
+internal data class ThemeAppearanceSettings(
+    val preference: ThemePreference,
+    val onPreferenceChanged: (ThemePreference) -> Unit,
+    val baseColor: BulletinThemeColor,
+    val themeColor: BulletinThemeColor,
+    val onThemeColorsChanged: (BulletinThemeColor, BulletinThemeColor) -> Unit
+)
+
 @Composable
 internal fun SettingsView(
     uiState: ProfileUiState,
     onBack: () -> Unit,
     actions: SettingsActions,
-    themePreference: ThemePreference? = null,
-    onThemePreferenceChanged: ((ThemePreference) -> Unit)? = null,
+    appearance: ThemeAppearanceSettings? = null,
     reportedListingVisibilitySetting: ReportedListingVisibilitySetting? = null,
     showDeleteConfirmation: Boolean? = null
 ) {
@@ -110,10 +118,13 @@ internal fun SettingsView(
                 onClick = actions.onNotifications
             )
 
-            if (themePreference != null && onThemePreferenceChanged != null) {
+            appearance?.let { settings ->
                 AppearanceCard(
-                    themePreference = themePreference,
-                    onThemePreferenceChanged = onThemePreferenceChanged
+                    themePreference = settings.preference,
+                    baseColor = settings.baseColor,
+                    themeColor = settings.themeColor,
+                    onThemePreferenceChanged = settings.onPreferenceChanged,
+                    onThemeColorsChanged = settings.onThemeColorsChanged
                 )
             }
 
