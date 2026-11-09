@@ -18,80 +18,131 @@ import com.jdrms.bulletin.core.designsystem.BulletinFieldDecoration
 import com.jdrms.bulletin.core.designsystem.BulletinFieldOptions
 import com.jdrms.bulletin.core.designsystem.BulletinTextField
 import com.jdrms.bulletin.domain.marketplace.domain.model.MarketplaceAttributeCatalog
+import com.jdrms.bulletin.domain.marketplace.domain.model.MarketplaceAttributeFilterMode
+import com.jdrms.bulletin.domain.marketplace.domain.model.MarketplaceAttributeKind
+import com.jdrms.bulletin.domain.marketplace.domain.model.MarketplaceAttributeSpec
+import com.jdrms.bulletin.domain.marketplace.domain.model.MarketplaceCategory
 
-/** Electronics-only filter inputs inside the filter sheet: device type, exact brand, RAM and storage ranges. */
 @Composable
 internal fun MarketplaceAttributeFilterFields(
+    category: MarketplaceCategory,
     draft: MarketplaceAttributeFilterDraft,
     errors: Map<String, String>,
     onChange: (MarketplaceAttributeFilterDraft) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Device type", style = MaterialTheme.typography.titleMedium)
+    val selectedChoices = draft.inputs.mapNotNull { (key, input) ->
+        input.exact.takeIf(String::isNotBlank)?.let { key to it }
+    }.toMap()
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        MarketplaceAttributeCatalog.applicableSpecs(category, selectedChoices).forEach { spec ->
+            val input = draft.input(spec.key)
+            when {
+                spec.kind == MarketplaceAttributeKind.CHOICE -> ChoiceField(
+                    spec,
+                    spec.choicesFor(selectedChoices),
+                    input.exact
+                ) {
+                    onChange(draft.withExact(spec.key, it).reconciled(category))
+                }
+                spec.kind == MarketplaceAttributeKind.TEXT -> MarketplaceExactFilterField(
+                    title = spec.label,
+                    subtitle = "Exact match",
+                    value = input.exact,
+                    error = errors[spec.key],
+                    onValueChange = { onChange(draft.withExact(spec.key, it)) }
+                )
+                spec.kind == MarketplaceAttributeKind.INTEGER &&
+                    spec.filterMode == MarketplaceAttributeFilterMode.EXACT -> MarketplaceExactFilterField(
+                    title = spec.label,
+                    subtitle = if (spec.key == MarketplaceAttributeCatalog.EDITION) {
+                        "Specific edition number"
+                    } else {
+                        "Specific capacity"
+                    },
+                    value = input.exact,
+                    error = errors[spec.key],
+                    keyboardType = KeyboardType.Number,
+                    suffix = spec.suffix,
+                    onValueChange = { onChange(draft.withExact(spec.key, it)) }
+                )
+                else -> RangeField(spec, input, errors[spec.key], draft, onChange)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChoiceField(
+    spec: MarketplaceAttributeSpec,
+    choices: Map<String, String>,
+    selected: String,
+    onSelect: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(spec.label, style = MaterialTheme.typography.titleMedium)
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            MarketplaceAttributeCatalog.deviceTypes.forEach { (code, label) ->
+            choices.forEach { (code, label) ->
                 FilterChip(
-                    selected = draft.deviceType == code,
-                    onClick = { onChange(draft.copy(deviceType = if (draft.deviceType == code) null else code)) },
+                    selected = selected == code,
+                    onClick = { onSelect(if (selected == code) "" else code) },
                     label = { Text(label) }
                 )
             }
         }
-        FilterTextField(
-            "Brand (exact match)",
-            draft.brand,
-            errors[MarketplaceAttributeFilterDraft.BRAND],
-            KeyboardType.Text
-        ) {
-            onChange(draft.copy(brand = it))
-        }
-        RangeRow(
-            "RAM (GB)",
-            draft.ramMin,
-            draft.ramMax,
-            errors[MarketplaceAttributeFilterDraft.RAM],
-            { onChange(draft.copy(ramMin = it)) },
-            { onChange(draft.copy(ramMax = it)) }
-        )
-        RangeRow(
-            "Storage (GB)",
-            draft.storageMin,
-            draft.storageMax,
-            errors[MarketplaceAttributeFilterDraft.STORAGE],
-            { onChange(draft.copy(storageMin = it)) },
-            { onChange(draft.copy(storageMax = it)) }
-        )
     }
 }
 
 @Composable
-private fun RangeRow(
-    label: String,
-    min: String,
-    max: String,
+private fun RangeField(
+    spec: MarketplaceAttributeSpec,
+    input: MarketplaceAttributeFilterInput,
     error: String?,
-    onMin: (String) -> Unit,
-    onMax: (String) -> Unit
+    draft: MarketplaceAttributeFilterDraft,
+    onChange: (MarketplaceAttributeFilterDraft) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterTextField("$label min", min, error?.let { "" }, KeyboardType.Number, Modifier.weight(1f), onMin)
-            FilterTextField("$label max", max, error?.let { "" }, KeyboardType.Number, Modifier.weight(1f), onMax)
-        }
-        error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+    val isDate = spec.kind == MarketplaceAttributeKind.DATE
+    val keyboard = when (spec.kind) {
+        MarketplaceAttributeKind.INTEGER -> KeyboardType.Number
+        MarketplaceAttributeKind.DECIMAL -> KeyboardType.Decimal
+        else -> KeyboardType.Text
     }
+    MarketplaceRangeFields(
+        title = spec.label,
+        subtitle = if (isDate) "Use YYYY-MM-DD" else null,
+        minimumLabel = if (isDate) "Earliest" else "Minimum",
+        maximumLabel = if (isDate) "Latest" else "Maximum",
+        error = error,
+        minimumField = { modifier ->
+            FilterTextField(
+                value = input.min,
+                error = error?.let { "" },
+                keyboardType = keyboard,
+                modifier = modifier,
+                decoration = rangeFieldDecoration(spec)
+            ) { onChange(draft.withMin(spec.key, it)) }
+        },
+        maximumField = { modifier ->
+            FilterTextField(
+                value = input.max,
+                error = error?.let { "" },
+                keyboardType = keyboard,
+                modifier = modifier,
+                decoration = rangeFieldDecoration(spec)
+            ) { onChange(draft.withMax(spec.key, it)) }
+        }
+    )
 }
 
 @Composable
 private fun FilterTextField(
-    label: String,
     value: String,
     error: String?,
     keyboardType: KeyboardType,
     modifier: Modifier = Modifier.fillMaxWidth(),
+    decoration: BulletinFieldDecoration = BulletinFieldDecoration(),
     onValueChange: (String) -> Unit
 ) {
     BulletinTextField(
@@ -100,12 +151,17 @@ private fun FilterTextField(
         modifier = modifier,
         isError = error != null,
         decoration = BulletinFieldDecoration(
-            label = { Text(label) },
+            label = decoration.label,
+            placeholder = decoration.placeholder,
+            leadingIcon = decoration.leadingIcon,
+            trailingIcon = decoration.trailingIcon,
             supportingText = error?.takeIf(String::isNotEmpty)?.let { message -> { Text(message) } }
         ),
-        options = BulletinFieldOptions(
-
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
-        )
+        options = BulletinFieldOptions(keyboardOptions = KeyboardOptions(keyboardType = keyboardType))
     )
 }
+
+private fun rangeFieldDecoration(spec: MarketplaceAttributeSpec) = BulletinFieldDecoration(
+    leadingIcon = spec.prefix.takeIf(String::isNotBlank)?.let { text -> { Text(text.trim()) } },
+    trailingIcon = spec.suffix.takeIf(String::isNotBlank)?.let { text -> { Text(text.trim()) } }
+)
